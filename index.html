@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+  <title>URL Extractor — 100% Client-Side URL Parser</title>
+  <meta name="description" content="Ekstrak semua URL dari teks panjang secara instan, aman, dan 100% offline di browser Anda tanpa membebani server." />
+  <meta name="theme-color" content="#FDFBF7" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div class="app-wrapper">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-top">
+        <div class="brand-badge">
+          <div class="brand-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+            </svg>
+          </div>
+          <span class="brand-name">URL Extractor</span>
+        </div>
+        <div class="header-meta">
+          <span class="status-pill">
+            <span class="status-dot"></span>
+            100% Client-Side Engine
+          </span>
+        </div>
+      </div>
+      <p class="app-description">
+        Ekstrak tautan dari teks panjang yang bercampur deskripsi secara instan, aman, dan 100% lokal di browser Anda.
+      </p>
+    </header>
+
+    <!-- Main Workspace (Responsive Grid) -->
+    <main class="workspace-grid">
+      <!-- Input Pane -->
+      <section class="card-pane" aria-labelledby="input-heading">
+        <div class="card-header">
+          <h2 id="input-heading" class="card-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            Teks Sumber
+          </h2>
+          <div class="card-tools">
+            <button id="btn-sample" type="button" class="btn btn-ghost" title="Muat contoh teks">
+              Contoh
+            </button>
+            <button id="btn-clear" type="button" class="btn btn-ghost" title="Bersihkan teks">
+              Bersihkan
+            </button>
+          </div>
+        </div>
+
+        <div class="pane-body">
+          <textarea
+            id="input-text"
+            class="editor-textarea"
+            placeholder="Tempelkan atau ketik teks panjang yang berisi campuran deskripsi dan tautan di sini..."
+            aria-label="Teks sumber yang akan diekstrak"
+            spellcheck="false"
+          ></textarea>
+        </div>
+
+        <div class="card-footer">
+          <span id="char-counter" class="counter-text">0 karakter</span>
+          <button id="btn-extract-desktop" type="button" class="btn btn-primary" title="Ekstrak URL (Ctrl+Enter)">
+            <span>Ekstrak URL</span>
+            <kbd class="kbd">↵</kbd>
+          </button>
+        </div>
+      </section>
+
+      <!-- Output Pane -->
+      <section class="card-pane" aria-labelledby="output-heading">
+        <div class="card-header">
+          <h2 id="output-heading" class="card-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 11 12 14 22 4"></polyline>
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+            </svg>
+            Hasil URL
+          </h2>
+          <div class="card-tools">
+            <button id="btn-copy-all" type="button" class="btn btn-primary" disabled title="Salin semua URL ke clipboard">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              <span>Salin Semua</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="pane-body">
+          <div id="output-empty" class="output-placeholder-empty">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <p>Masukkan teks pada area di sebelah kiri, lalu tekan <strong>Ekstrak URL</strong>.</p>
+          </div>
+
+          <textarea
+            id="output-text"
+            class="output-textarea"
+            readonly
+            style="display: none;"
+            aria-label="Daftar URL hasil ekstraksi"
+            placeholder="Daftar URL akan muncul di sini..."
+            spellcheck="false"
+          ></textarea>
+        </div>
+
+        <div class="card-footer">
+          <span id="url-counter" class="counter-text">0 URL ditemukan</span>
+          <button id="btn-download" type="button" class="btn btn-secondary" style="display: none;" title="Unduh sebagai file .txt">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Unduh .txt
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <!-- Options Bar -->
+    <div class="options-bar">
+      <label class="checkbox-label">
+        <input type="checkbox" id="opt-deduplicate" />
+        <span>Hapus URL duplikat (hanya simpan URL unik)</span>
+      </label>
+    </div>
+
+    <!-- Mobile Sticky Action Strip -->
+    <div class="mobile-action-strip">
+      <button id="btn-extract-mobile" type="button" class="btn btn-primary btn-large-mobile">
+        <span>Ekstrak URL</span>
+      </button>
+    </div>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div>
+        <span>URL Extractor</span> &bull; <span>100% Client-Side</span> &bull; <span>Tanpa beban server</span>
+      </div>
+      <div>
+        <a href="https://github.com/fatahilah-mr/url-extractor" target="_blank" rel="noopener noreferrer" class="footer-link">
+          GitHub Repository
+        </a>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Toast Feedback -->
+  <div id="toast" class="toast-container" role="status" aria-live="polite">
+    <svg class="toast-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="20 6 9 17 4 12"></polyline>
+    </svg>
+    <span id="toast-message">Semua URL berhasil disalin!</span>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
