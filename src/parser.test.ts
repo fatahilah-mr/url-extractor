@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractUrls } from './parser';
+import { extractUrls, formatUrlList } from './parser';
 
 describe('extractUrls Engine', () => {
   it('returns empty result for empty or whitespace string', () => {
@@ -141,6 +141,31 @@ describe('extractUrls Engine', () => {
       const result = extractUrls(text, { deduplicate: true });
       expect(result.urls).toHaveLength(1);
       expect(result.duplicatesRemoved).toBe(1);
+    });
+  });
+
+  describe('formatUrlList Formatter', () => {
+    it('returns empty string for empty input', () => {
+      expect(formatUrlList([])).toBe('');
+      expect(formatUrlList([], true)).toBe('');
+    });
+
+    it('formats plain URLs without numbers when numbered is false', () => {
+      const urls = ['https://a.com', 'https://b.com'];
+      expect(formatUrlList(urls, false)).toBe('https://a.com\nhttps://b.com');
+    });
+
+    it('formats sequential numbered URLs when numbered is true (1. url, 2. url)', () => {
+      const urls = ['https://a.com', 'https://b.com', 'https://c.com'];
+      expect(formatUrlList(urls, true)).toBe('1. https://a.com\n2. https://b.com\n3. https://c.com');
+    });
+
+    it('correctly handles multi-digit numbering (e.g. 10+)', () => {
+      const urls = Array.from({ length: 12 }, (_, i) => `https://link-${i + 1}.com`);
+      const output = formatUrlList(urls, true);
+      expect(output).toContain('1. https://link-1.com');
+      expect(output).toContain('10. https://link-10.com');
+      expect(output).toContain('12. https://link-12.com');
     });
   });
 });

@@ -1,4 +1,7 @@
-import { extractUrls } from './parser';
+import { extractUrls, formatUrlList } from './parser';
+
+// Storage key for preference persistence
+const SAVED_NUMBERED_PREF_KEY = 'url_extractor_numbered_pref';
 
 // DOM Element references
 const inputText = document.getElementById('input-text') as HTMLTextAreaElement | null;
@@ -21,7 +24,10 @@ const btnCopyMobile = document.getElementById('btn-copy-mobile') as HTMLButtonEl
 const btnSample = document.getElementById('btn-sample') as HTMLButtonElement | null;
 const btnClear = document.getElementById('btn-clear') as HTMLButtonElement | null;
 const btnDownload = document.getElementById('btn-download') as HTMLButtonElement | null;
+
 const optDeduplicate = document.getElementById('opt-deduplicate') as HTMLInputElement | null;
+const optNumbered = document.getElementById('opt-numbered') as HTMLInputElement | null;
+
 const toast = document.getElementById('toast') as HTMLElement | null;
 const toastMessage = document.getElementById('toast-message') as HTMLElement | null;
 
@@ -29,6 +35,14 @@ let toastTimeout: number | undefined;
 let debounceTimer: number | undefined;
 let currentViewMode: 'links' | 'raw' = 'links';
 let currentUrls: string[] = [];
+
+// Restore saved numbering preference from localStorage
+if (optNumbered) {
+  const savedPref = localStorage.getItem(SAVED_NUMBERED_PREF_KEY);
+  if (savedPref !== null) {
+    optNumbered.checked = savedPref === 'true';
+  }
+}
 
 /**
  * Display a subtle toast feedback message
@@ -99,9 +113,10 @@ function setCopyButtonsState(enabled: boolean): void {
 }
 
 /**
- * Render interactive clickable links using safe DOM APIs (Zero-XSS) and DocumentFragment
+ * Render interactive clickable links using safe DOM APIs (Zero-XSS) and DocumentFragment.
+ * Respects the user's numbering format preference visually.
  */
-function renderInteractiveLinks(urls: string[]): void {
+function renderInteractiveLinks(urls: string[], isNumbered: boolean): void {
   if (!outputLinksList) return;
   outputLinksList.replaceChildren();
 
@@ -111,10 +126,11 @@ function renderInteractiveLinks(urls: string[]): void {
     const row = document.createElement('div');
     row.className = 'url-item-row';
 
-    // Index number
+    // Index number badge (Displays 1., 2., 3. when numbered mode is active)
     const indexBadge = document.createElement('span');
     indexBadge.className = 'url-item-index';
-    indexBadge.textContent = `${idx + 1}`;
+    indexBadge.textContent = `${idx + 1}.`;
+    indexBadge.style.display = isNumbered ? 'inline-block' : 'none';
 
     // Hyperlink (Safe DOM: textContent & setAttribute prevent any injection)
     const anchor = document.createElement('a');
@@ -125,7 +141,7 @@ function renderInteractiveLinks(urls: string[]): void {
     anchor.textContent = url;
     anchor.title = `Buka ${url} di tab baru`;
 
-    // Per-item copy button
+    // Per-item copy button (Always copies clean canonical URL without numbers)
     const copyBtn = document.createElement('button');
     copyBtn.type = 'button';
     copyBtn.className = 'btn-copy-single';
@@ -153,7 +169,7 @@ function renderInteractiveLinks(urls: string[]): void {
 }
 
 /**
- * Copy a single URL with instant tactile feedback
+ * Copy a single URL (always clean without number prefix) with instant tactile feedback
  */
 async function copySingleUrl(url: string, btnElement: HTMLButtonElement): Promise<void> {
   try {
@@ -234,17 +250,20 @@ function handleExtract(notifyIfEmpty = false): void {
     return;
   }
 
-  // Deduplication is active by default (optDeduplicate.checked === true)
+  // Deduplication option (active by default)
   const isDeduplicate = optDeduplicate ? optDeduplicate.checked : true;
+  // Numbering option (WYSIWYG format)
+  const isNumbered = optNumbered ? optNumbered.checked : false;
+
   const result = extractUrls(rawText, { deduplicate: isDeduplicate });
   currentUrls = result.urls;
 
   if (currentUrls.length > 0) {
-    // Populate raw textarea
-    if (outputText) outputText.value = currentUrls.join('\n');
+    // Populate raw textarea with identical numbering format (WYSIWYG)
+    if (outputText) outputText.value = formatUrlList(currentUrls, isNumbered);
 
     // Populate interactive links list
-    renderInteractiveLinks(currentUrls);
+    renderInteractiveLinks(currentUrls, isNumbered);
 
     // Switch view
     if (outputEmpty) outputEmpty.style.display = 'none';
@@ -297,10 +316,11 @@ function triggerLiveExtract(): void {
 }
 
 /**
- * Copy all extracted URLs to clipboard
+ * Copy all extracted URLs to clipboard formatted according to numbering setting
  */
 async function handleCopyAll(): Promise<void> {
-  const textToCopy = currentUrls.join('\n').trim();
+  const isNumbered = optNumbered ? optNumbered.checked : false;
+  const textToCopy = formatUrlList(currentUrls, isNumbered).trim();
 
   if (!textToCopy) {
     showToast('Tidak ada URL untuk disalin.');
@@ -318,7 +338,8 @@ async function handleCopyAll(): Promise<void> {
       }
     }
 
-    showToast(`✓ Semua ${currentUrls.length} URL berhasil disalin!`);
+    const modeMsg = isNumbered ? ' (bernomor)' : '';
+    showToast(`✓ Semua ${currentUrls.length} URL berhasil disalin${modeMsg}!`);
 
     // Tactile feedback on copy buttons
     const buttons = [btnCopyAll, btnCopyMobile].filter(Boolean) as HTMLButtonElement[];
@@ -369,10 +390,11 @@ async function handleQuickPaste(): Promise<void> {
 }
 
 /**
- * Download extracted URLs as a .txt file
+ * Download extracted URLs as a .txt file formatted according to numbering setting
  */
 function handleDownload(): void {
-  const content = currentUrls.join('\n').trim();
+  const isNumbered = optNumbered ? optNumbered.checked : false;
+  const content = formatUrlList(currentUrls, isNumbered).trim();
   if (!content) return;
 
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
@@ -389,7 +411,7 @@ function handleDownload(): void {
 }
 
 /**
- * Load realistic sample text (including deliberate duplicate for demonstration)
+ * Load realistic sample text
  */
 function handleSample(): void {
   if (!inputText) return;
@@ -452,10 +474,24 @@ btnSample?.addEventListener('click', handleSample);
 btnClear?.addEventListener('click', handleClear);
 btnDownload?.addEventListener('click', handleDownload);
 
+// Deduplicate checkbox change handler
 optDeduplicate?.addEventListener('change', () => {
   if (inputText && inputText.value.trim().length > 0) {
     handleExtract(false);
   }
+});
+
+// Numbered format checkbox change handler (Live synchronization & persistence)
+optNumbered?.addEventListener('change', () => {
+  const isNumbered = Boolean(optNumbered.checked);
+  localStorage.setItem(SAVED_NUMBERED_PREF_KEY, isNumbered ? 'true' : 'false');
+
+  if (currentUrls.length > 0) {
+    if (outputText) outputText.value = formatUrlList(currentUrls, isNumbered);
+    renderInteractiveLinks(currentUrls, isNumbered);
+  }
+
+  showToast(isNumbered ? 'Format penomoran aktif (1. link)' : 'Format penomoran dinonaktifkan');
 });
 
 // Keyboard Shortcut: Ctrl/Cmd + Shift + C to copy all

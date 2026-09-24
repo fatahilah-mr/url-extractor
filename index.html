@@ -164,10 +164,16 @@
 
     <!-- Options Bar -->
     <div class="options-bar">
-      <label class="checkbox-label" for="opt-deduplicate">
-        <input type="checkbox" id="opt-deduplicate" checked />
-        <span>Hapus URL duplikat secara otomatis (hanya simpan URL unik)</span>
-      </label>
+      <div class="options-group">
+        <label class="checkbox-label" for="opt-deduplicate">
+          <input type="checkbox" id="opt-deduplicate" checked />
+          <span>Hapus URL duplikat</span>
+        </label>
+        <label class="checkbox-label" for="opt-numbered">
+          <input type="checkbox" id="opt-numbered" />
+          <span>Format penomoran (1. link)</span>
+        </label>
+      </div>
       <span id="dedupe-badge" class="dedupe-status-badge" style="display: none;"></span>
     </div>
 

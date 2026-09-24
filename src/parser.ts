@@ -112,3 +112,15 @@ export function extractUrls(text: string, options: ExtractOptions = {}): Extract
     duplicatesRemoved,
   };
 }
+
+/**
+ * Formats an array of URLs into a newline-separated string,
+ * optionally prefixing each line with 1-based sequential numbers (1. url, 2. url).
+ */
+export function formatUrlList(urls: string[], numbered = false): string {
+  if (!urls || urls.length === 0) return '';
+  if (numbered) {
+    return urls.map((url, i) => `${i + 1}. ${url}`).join('\n');
+  }
+  return urls.join('\n');
+}
