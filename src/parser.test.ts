@@ -71,4 +71,25 @@ describe('extractUrls Engine', () => {
       'https://en.wikipedia.org/wiki/URL_(disambiguation)'
     ]);
   });
+
+  /* Enterprise Security & Hardening Tests */
+  it('strictly rejects dangerous non-http protocols (XSS prevention)', () => {
+    const maliciousText = `
+      Tautan terlarang: javascript:alert(1)
+      Data uri: data:text/html,<script>alert('xss')</script>
+      VBScript: vbscript:msgbox("hello")
+      File system: file:///etc/passwd
+    `;
+    const result = extractUrls(maliciousText);
+    expect(result.urls).toEqual([]);
+    expect(result.totalExtracted).toBe(0);
+  });
+
+  it('handles IP addresses, custom ports, and encoded URL characters', () => {
+    const text = 'Dashboard: http://192.168.1.1:8080/admin/v2?filter=%20special';
+    const result = extractUrls(text);
+    expect(result.urls).toEqual([
+      'http://192.168.1.1:8080/admin/v2?filter=%20special'
+    ]);
+  });
 });

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
   <title>URL Extractor — 100% Client-Side URL Parser</title>
-  <meta name="description" content="Ekstrak semua URL dari teks panjang secara instan, aman, dan 100% offline di browser Anda tanpa membebani server." />
+  <meta name="description" content="Ekstrak semua URL dari teks panjang secara otomatis, aman, dan 100% offline di browser Anda tanpa membebani server." />
   <meta name="theme-color" content="#FDFBF7" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="stylesheet" href="/src/style.css" />
@@ -88,14 +88,26 @@
 
       <!-- Output Pane -->
       <section class="card-pane" aria-labelledby="output-heading">
-        <div class="card-header">
-          <h2 id="output-heading" class="card-title">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="9 11 12 14 22 4"></polyline>
-              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-            </svg>
-            Hasil URL
-          </h2>
+        <div class="card-header card-header-output">
+          <div class="header-left-group">
+            <h2 id="output-heading" class="card-title">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 11 12 14 22 4"></polyline>
+                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+              </svg>
+              Hasil URL
+            </h2>
+            <!-- View Mode Tab Switcher -->
+            <div class="tab-group" role="tablist" aria-label="Mode tampilan hasil">
+              <button id="tab-links" type="button" role="tab" class="tab-btn active" aria-selected="true" aria-controls="output-links-container">
+                Tautan
+              </button>
+              <button id="tab-raw" type="button" role="tab" class="tab-btn" aria-selected="false" aria-controls="output-raw-container">
+                Mentah
+              </button>
+            </div>
+          </div>
+
           <div class="card-tools">
             <button id="btn-copy-all" type="button" class="btn btn-primary" disabled title="Salin semua URL ke clipboard">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -108,24 +120,32 @@
         </div>
 
         <div class="pane-body">
+          <!-- Empty State -->
           <div id="output-empty" class="output-placeholder-empty">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="12" y1="8" x2="12" y2="12"></line>
               <line x1="12" y1="16" x2="12.01" y2="16"></line>
             </svg>
-            <p>Tempelkan teks di sebelah kiri, seluruh URL akan <strong>otomatis diekstrak</strong> secara instan di sini.</p>
+            <p>Tempelkan teks di sebelah kiri, seluruh URL akan <strong>otomatis diekstrak</strong> menjadi tautan aktif di sini.</p>
           </div>
 
-          <textarea
-            id="output-text"
-            class="output-textarea"
-            readonly
-            style="display: none;"
-            aria-label="Daftar URL hasil ekstraksi"
-            placeholder="Daftar URL akan muncul di sini..."
-            spellcheck="false"
-          ></textarea>
+          <!-- Interactive Links View (Default) -->
+          <div id="output-links-container" class="output-links-scrollable" role="tabpanel" aria-labelledby="tab-links" style="display: none;">
+            <div id="output-links-list" class="url-links-list"></div>
+          </div>
+
+          <!-- Raw Textarea View (Accessible Fallback) -->
+          <div id="output-raw-container" class="output-raw-wrapper" role="tabpanel" aria-labelledby="tab-raw" style="display: none;">
+            <textarea
+              id="output-text"
+              class="output-textarea"
+              readonly
+              aria-label="Daftar teks mentah URL"
+              placeholder="Daftar URL mentah akan muncul di sini..."
+              spellcheck="false"
+            ></textarea>
+          </div>
         </div>
 
         <div class="card-footer">

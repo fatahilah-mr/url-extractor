@@ -2,8 +2,15 @@ import { extractUrls } from './parser';
 
 // DOM Element references
 const inputText = document.getElementById('input-text') as HTMLTextAreaElement | null;
-const outputText = document.getElementById('output-text') as HTMLTextAreaElement | null;
 const outputEmpty = document.getElementById('output-empty') as HTMLElement | null;
+const outputLinksContainer = document.getElementById('output-links-container') as HTMLElement | null;
+const outputLinksList = document.getElementById('output-links-list') as HTMLElement | null;
+const outputRawContainer = document.getElementById('output-raw-container') as HTMLElement | null;
+const outputText = document.getElementById('output-text') as HTMLTextAreaElement | null;
+
+const tabLinks = document.getElementById('tab-links') as HTMLButtonElement | null;
+const tabRaw = document.getElementById('tab-raw') as HTMLButtonElement | null;
+
 const charCounter = document.getElementById('char-counter') as HTMLElement | null;
 const urlCounter = document.getElementById('url-counter') as HTMLElement | null;
 const btnPasteQuick = document.getElementById('btn-paste-quick') as HTMLButtonElement | null;
@@ -18,6 +25,8 @@ const toastMessage = document.getElementById('toast-message') as HTMLElement | n
 
 let toastTimeout: number | undefined;
 let debounceTimer: number | undefined;
+let currentViewMode: 'links' | 'raw' = 'links';
+let currentUrls: string[] = [];
 
 /**
  * Display a subtle toast feedback message
@@ -47,6 +56,38 @@ function updateCharCounter(): void {
 }
 
 /**
+ * Toggle between 'links' (interactive list) and 'raw' (textarea) views
+ */
+function setViewMode(mode: 'links' | 'raw'): void {
+  currentViewMode = mode;
+
+  if (tabLinks) {
+    tabLinks.classList.toggle('active', mode === 'links');
+    tabLinks.setAttribute('aria-selected', mode === 'links' ? 'true' : 'false');
+  }
+  if (tabRaw) {
+    tabRaw.classList.toggle('active', mode === 'raw');
+    tabRaw.setAttribute('aria-selected', mode === 'raw' ? 'true' : 'false');
+  }
+
+  const hasUrls = currentUrls.length > 0;
+  if (!hasUrls) {
+    if (outputLinksContainer) outputLinksContainer.style.display = 'none';
+    if (outputRawContainer) outputRawContainer.style.display = 'none';
+    if (outputEmpty) outputEmpty.style.display = 'flex';
+    return;
+  }
+
+  if (mode === 'links') {
+    if (outputLinksContainer) outputLinksContainer.style.display = 'block';
+    if (outputRawContainer) outputRawContainer.style.display = 'none';
+  } else {
+    if (outputLinksContainer) outputLinksContainer.style.display = 'none';
+    if (outputRawContainer) outputRawContainer.style.display = 'flex';
+  }
+}
+
+/**
  * Enable or disable copy buttons and download action
  */
 function setCopyButtonsState(enabled: boolean): void {
@@ -56,16 +97,132 @@ function setCopyButtonsState(enabled: boolean): void {
 }
 
 /**
+ * Render interactive clickable links using safe DOM APIs (Zero-XSS) and DocumentFragment
+ */
+function renderInteractiveLinks(urls: string[]): void {
+  if (!outputLinksList) return;
+  outputLinksList.replaceChildren();
+
+  const fragment = document.createDocumentFragment();
+
+  urls.forEach((url, idx) => {
+    const row = document.createElement('div');
+    row.className = 'url-item-row';
+
+    // Index number
+    const indexBadge = document.createElement('span');
+    indexBadge.className = 'url-item-index';
+    indexBadge.textContent = `${idx + 1}`;
+
+    // Hyperlink (Safe DOM: textContent & setAttribute prevent any injection)
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.target = '_blank';
+    anchor.rel = 'noopener noreferrer';
+    anchor.className = 'url-link-item';
+    anchor.textContent = url;
+    anchor.title = `Buka ${url} di tab baru`;
+
+    // Per-item copy button
+    const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'btn-copy-single';
+    copyBtn.title = 'Salin tautan ini';
+    copyBtn.setAttribute('aria-label', `Salin tautan ${url}`);
+    copyBtn.innerHTML = `
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+      </svg>
+    `;
+
+    copyBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      copySingleUrl(url, copyBtn);
+    });
+
+    row.appendChild(indexBadge);
+    row.appendChild(anchor);
+    row.appendChild(copyBtn);
+    fragment.appendChild(row);
+  });
+
+  outputLinksList.appendChild(fragment);
+}
+
+/**
+ * Copy a single URL with instant tactile feedback
+ */
+async function copySingleUrl(url: string, btnElement: HTMLButtonElement): Promise<void> {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(url);
+    } else {
+      const tempTextArea = document.createElement('textarea');
+      tempTextArea.value = url;
+      document.body.appendChild(tempTextArea);
+      tempTextArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempTextArea);
+    }
+
+    showToast('✓ Tautan disalin ke clipboard!');
+
+    btnElement.classList.add('copied');
+    btnElement.innerHTML = `
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+    `;
+
+    setTimeout(() => {
+      btnElement.classList.remove('copied');
+      btnElement.innerHTML = `
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+      `;
+    }, 1500);
+  } catch (err) {
+    console.error('Copy single URL error:', err);
+    showToast('Gagal menyalin tautan.');
+  }
+}
+
+/**
+ * Smart Line Auto-Select on Textarea:
+ * When tapping or clicking anywhere on a line, auto-select that entire URL line without dragging pins!
+ */
+function handleAutoSelectLine(e: MouseEvent | TouchEvent): void {
+  const target = e.target as HTMLTextAreaElement;
+  const pos = target.selectionStart;
+  const text = target.value;
+  if (!text) return;
+
+  const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+  let lineEnd = text.indexOf('\n', pos);
+  if (lineEnd === -1) lineEnd = text.length;
+
+  if (lineEnd > lineStart) {
+    target.setSelectionRange(lineStart, lineEnd);
+  }
+}
+
+/**
  * Execute the URL extraction
  */
 function handleExtract(notifyIfEmpty = false): void {
-  if (!inputText || !outputText || !outputEmpty || !urlCounter) return;
+  if (!inputText || !urlCounter) return;
 
   const rawText = inputText.value.trim();
   if (!rawText) {
-    outputText.value = '';
-    outputText.style.display = 'none';
-    outputEmpty.style.display = 'flex';
+    currentUrls = [];
+    if (outputText) outputText.value = '';
+    if (outputLinksList) outputLinksList.replaceChildren();
+    if (outputEmpty) outputEmpty.style.display = 'flex';
+    if (outputLinksContainer) outputLinksContainer.style.display = 'none';
+    if (outputRawContainer) outputRawContainer.style.display = 'none';
     setCopyButtonsState(false);
     urlCounter.textContent = '0 URL ditemukan';
     if (notifyIfEmpty) {
@@ -76,20 +233,31 @@ function handleExtract(notifyIfEmpty = false): void {
 
   const isDeduplicate = optDeduplicate ? optDeduplicate.checked : false;
   const result = extractUrls(rawText, { deduplicate: isDeduplicate });
+  currentUrls = result.urls;
 
-  if (result.urls.length > 0) {
-    outputText.value = result.urls.join('\n');
-    outputText.style.display = 'block';
-    outputEmpty.style.display = 'none';
+  if (currentUrls.length > 0) {
+    // Populate raw textarea
+    if (outputText) outputText.value = currentUrls.join('\n');
+
+    // Populate interactive links list
+    renderInteractiveLinks(currentUrls);
+
+    // Switch view
+    if (outputEmpty) outputEmpty.style.display = 'none';
+    setViewMode(currentViewMode);
+
     setCopyButtonsState(true);
     urlCounter.textContent = `${result.totalExtracted.toLocaleString('id-ID')} URL ditemukan`;
     if (notifyIfEmpty) {
       showToast(`✓ Berhasil mengekstrak ${result.totalExtracted} URL`);
     }
   } else {
-    outputText.value = '';
-    outputText.style.display = 'none';
-    outputEmpty.style.display = 'flex';
+    currentUrls = [];
+    if (outputText) outputText.value = '';
+    if (outputLinksList) outputLinksList.replaceChildren();
+    if (outputEmpty) outputEmpty.style.display = 'flex';
+    if (outputLinksContainer) outputLinksContainer.style.display = 'none';
+    if (outputRawContainer) outputRawContainer.style.display = 'none';
     setCopyButtonsState(false);
     urlCounter.textContent = '0 URL ditemukan';
     if (notifyIfEmpty) {
@@ -114,8 +282,7 @@ function triggerLiveExtract(): void {
  * Copy all extracted URLs to clipboard
  */
 async function handleCopyAll(): Promise<void> {
-  if (!outputText) return;
-  const textToCopy = outputText.value.trim();
+  const textToCopy = currentUrls.join('\n').trim();
 
   if (!textToCopy) {
     showToast('Tidak ada URL untuk disalin.');
@@ -126,11 +293,14 @@ async function handleCopyAll(): Promise<void> {
     if (navigator.clipboard && window.isSecureContext) {
       await navigator.clipboard.writeText(textToCopy);
     } else {
-      outputText.select();
-      document.execCommand('copy');
+      if (outputText) {
+        outputText.value = textToCopy;
+        outputText.select();
+        document.execCommand('copy');
+      }
     }
 
-    showToast('✓ Semua URL berhasil disalin ke clipboard!');
+    showToast(`✓ Semua ${currentUrls.length} URL berhasil disalin!`);
 
     // Tactile feedback on copy buttons
     const buttons = [btnCopyAll, btnCopyMobile].filter(Boolean) as HTMLButtonElement[];
@@ -184,8 +354,7 @@ async function handleQuickPaste(): Promise<void> {
  * Download extracted URLs as a .txt file
  */
 function handleDownload(): void {
-  if (!outputText) return;
-  const content = outputText.value.trim();
+  const content = currentUrls.join('\n').trim();
   if (!content) return;
 
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
@@ -198,7 +367,7 @@ function handleDownload(): void {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 
-  showToast('✓ File .txt berhasil diunduh!');
+  showToast('✓ Berkas .txt berhasil diunduh!');
 }
 
 /**
@@ -222,9 +391,12 @@ function handleSample(): void {
  */
 function handleClear(): void {
   if (inputText) inputText.value = '';
+  currentUrls = [];
   if (outputText) outputText.value = '';
-  if (outputText) outputText.style.display = 'none';
+  if (outputLinksList) outputLinksList.replaceChildren();
   if (outputEmpty) outputEmpty.style.display = 'flex';
+  if (outputLinksContainer) outputLinksContainer.style.display = 'none';
+  if (outputRawContainer) outputRawContainer.style.display = 'none';
   setCopyButtonsState(false);
   if (urlCounter) urlCounter.textContent = '0 URL ditemukan';
   updateCharCounter();
@@ -245,6 +417,14 @@ inputText?.addEventListener('paste', () => {
   }, 0);
 });
 
+// Tab Switchers
+tabLinks?.addEventListener('click', () => setViewMode('links'));
+tabRaw?.addEventListener('click', () => setViewMode('raw'));
+
+// Smart Line Auto-Select on Raw Textarea
+outputText?.addEventListener('click', handleAutoSelectLine);
+
+// Buttons
 btnPasteQuick?.addEventListener('click', handleQuickPaste);
 btnCopyAll?.addEventListener('click', handleCopyAll);
 btnCopyMobile?.addEventListener('click', handleCopyAll);
@@ -266,5 +446,6 @@ window.addEventListener('keydown', (e: KeyboardEvent) => {
   }
 });
 
-// Initial counter update
+// Initial counter update & state
 updateCharCounter();
+setViewMode('links');
