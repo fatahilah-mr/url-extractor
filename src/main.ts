@@ -6,9 +6,9 @@ const outputText = document.getElementById('output-text') as HTMLTextAreaElement
 const outputEmpty = document.getElementById('output-empty') as HTMLElement | null;
 const charCounter = document.getElementById('char-counter') as HTMLElement | null;
 const urlCounter = document.getElementById('url-counter') as HTMLElement | null;
-const btnExtractDesktop = document.getElementById('btn-extract-desktop') as HTMLButtonElement | null;
-const btnExtractMobile = document.getElementById('btn-extract-mobile') as HTMLButtonElement | null;
+const btnPasteQuick = document.getElementById('btn-paste-quick') as HTMLButtonElement | null;
 const btnCopyAll = document.getElementById('btn-copy-all') as HTMLButtonElement | null;
+const btnCopyMobile = document.getElementById('btn-copy-mobile') as HTMLButtonElement | null;
 const btnSample = document.getElementById('btn-sample') as HTMLButtonElement | null;
 const btnClear = document.getElementById('btn-clear') as HTMLButtonElement | null;
 const btnDownload = document.getElementById('btn-download') as HTMLButtonElement | null;
@@ -17,6 +17,7 @@ const toast = document.getElementById('toast') as HTMLElement | null;
 const toastMessage = document.getElementById('toast-message') as HTMLElement | null;
 
 let toastTimeout: number | undefined;
+let debounceTimer: number | undefined;
 
 /**
  * Display a subtle toast feedback message
@@ -46,18 +47,26 @@ function updateCharCounter(): void {
 }
 
 /**
+ * Enable or disable copy buttons and download action
+ */
+function setCopyButtonsState(enabled: boolean): void {
+  if (btnCopyAll) btnCopyAll.disabled = !enabled;
+  if (btnCopyMobile) btnCopyMobile.disabled = !enabled;
+  if (btnDownload) btnDownload.style.display = enabled ? 'inline-flex' : 'none';
+}
+
+/**
  * Execute the URL extraction
  */
-function handleExtract(notifyIfEmpty = true): void {
-  if (!inputText || !outputText || !outputEmpty || !urlCounter || !btnCopyAll) return;
+function handleExtract(notifyIfEmpty = false): void {
+  if (!inputText || !outputText || !outputEmpty || !urlCounter) return;
 
   const rawText = inputText.value.trim();
   if (!rawText) {
     outputText.value = '';
     outputText.style.display = 'none';
     outputEmpty.style.display = 'flex';
-    btnCopyAll.disabled = true;
-    if (btnDownload) btnDownload.style.display = 'none';
+    setCopyButtonsState(false);
     urlCounter.textContent = '0 URL ditemukan';
     if (notifyIfEmpty) {
       showToast('Silakan masukkan teks terlebih dahulu.');
@@ -72,16 +81,16 @@ function handleExtract(notifyIfEmpty = true): void {
     outputText.value = result.urls.join('\n');
     outputText.style.display = 'block';
     outputEmpty.style.display = 'none';
-    btnCopyAll.disabled = false;
-    if (btnDownload) btnDownload.style.display = 'inline-flex';
+    setCopyButtonsState(true);
     urlCounter.textContent = `${result.totalExtracted.toLocaleString('id-ID')} URL ditemukan`;
-    showToast(`✓ Berhasil mengekstrak ${result.totalExtracted} URL`);
+    if (notifyIfEmpty) {
+      showToast(`✓ Berhasil mengekstrak ${result.totalExtracted} URL`);
+    }
   } else {
     outputText.value = '';
     outputText.style.display = 'none';
     outputEmpty.style.display = 'flex';
-    btnCopyAll.disabled = true;
-    if (btnDownload) btnDownload.style.display = 'none';
+    setCopyButtonsState(false);
     urlCounter.textContent = '0 URL ditemukan';
     if (notifyIfEmpty) {
       showToast('Tidak ada URL yang ditemukan dalam teks.');
@@ -90,10 +99,22 @@ function handleExtract(notifyIfEmpty = true): void {
 }
 
 /**
+ * Trigger live extraction with smooth micro-debounce
+ */
+function triggerLiveExtract(): void {
+  if (debounceTimer) {
+    window.clearTimeout(debounceTimer);
+  }
+  debounceTimer = window.setTimeout(() => {
+    handleExtract(false);
+  }, 40);
+}
+
+/**
  * Copy all extracted URLs to clipboard
  */
 async function handleCopyAll(): Promise<void> {
-  if (!outputText || !btnCopyAll) return;
+  if (!outputText) return;
   const textToCopy = outputText.value.trim();
 
   if (!textToCopy) {
@@ -105,28 +126,57 @@ async function handleCopyAll(): Promise<void> {
     if (navigator.clipboard && window.isSecureContext) {
       await navigator.clipboard.writeText(textToCopy);
     } else {
-      // Fallback for non-secure contexts or older browsers
       outputText.select();
       document.execCommand('copy');
     }
 
     showToast('✓ Semua URL berhasil disalin ke clipboard!');
 
-    // Subtle tactile feedback on the copy button
-    const originalText = btnCopyAll.querySelector('span')?.textContent || 'Salin Semua';
-    const spanElem = btnCopyAll.querySelector('span');
-    if (spanElem) spanElem.textContent = 'Tersalin!';
-    btnCopyAll.style.backgroundColor = '#059669';
-    btnCopyAll.style.borderColor = '#059669';
+    // Tactile feedback on copy buttons
+    const buttons = [btnCopyAll, btnCopyMobile].filter(Boolean) as HTMLButtonElement[];
+    buttons.forEach((btn) => {
+      const spanElem = btn.querySelector('span');
+      const originalText = spanElem?.textContent || 'Salin Semua';
+      if (spanElem) spanElem.textContent = 'Tersalin!';
+      btn.style.backgroundColor = '#059669';
+      btn.style.borderColor = '#059669';
 
-    setTimeout(() => {
-      if (spanElem) spanElem.textContent = originalText;
-      btnCopyAll.style.backgroundColor = '';
-      btnCopyAll.style.borderColor = '';
-    }, 1500);
+      setTimeout(() => {
+        if (spanElem) spanElem.textContent = originalText;
+        btn.style.backgroundColor = '';
+        btn.style.borderColor = '';
+      }, 1500);
+    });
   } catch (err) {
     console.error('Clipboard copy error:', err);
     showToast('Gagal menyalin otomatis, silakan salin manual.');
+  }
+}
+
+/**
+ * Quick Paste from clipboard
+ */
+async function handleQuickPaste(): Promise<void> {
+  if (!inputText) return;
+
+  try {
+    if (navigator.clipboard && navigator.clipboard.readText) {
+      const text = await navigator.clipboard.readText();
+      if (!text) {
+        showToast('Clipboard Anda kosong.');
+        return;
+      }
+      inputText.value = text;
+      updateCharCounter();
+      handleExtract(false);
+      showToast('Teks berhasil ditempel dari clipboard.');
+    } else {
+      inputText.focus();
+      showToast('Gunakan pintasan Ctrl+V / Cmd+V untuk menempel.');
+    }
+  } catch {
+    inputText.focus();
+    showToast('Gunakan pintasan Ctrl+V / Cmd+V untuk menempel.');
   }
 }
 
@@ -175,35 +225,44 @@ function handleClear(): void {
   if (outputText) outputText.value = '';
   if (outputText) outputText.style.display = 'none';
   if (outputEmpty) outputEmpty.style.display = 'flex';
-  if (btnCopyAll) btnCopyAll.disabled = true;
-  if (btnDownload) btnDownload.style.display = 'none';
+  setCopyButtonsState(false);
   if (urlCounter) urlCounter.textContent = '0 URL ditemukan';
   updateCharCounter();
   if (inputText) inputText.focus();
   showToast('Teks dibersihkan.');
 }
 
-// Event Listeners
-inputText?.addEventListener('input', updateCharCounter);
+// Event Listeners: Real-time automatic extraction
+inputText?.addEventListener('input', () => {
+  updateCharCounter();
+  triggerLiveExtract();
+});
 
-btnExtractDesktop?.addEventListener('click', () => handleExtract(true));
-btnExtractMobile?.addEventListener('click', () => handleExtract(true));
+inputText?.addEventListener('paste', () => {
+  setTimeout(() => {
+    updateCharCounter();
+    handleExtract(false);
+  }, 0);
+});
+
+btnPasteQuick?.addEventListener('click', handleQuickPaste);
 btnCopyAll?.addEventListener('click', handleCopyAll);
+btnCopyMobile?.addEventListener('click', handleCopyAll);
 btnSample?.addEventListener('click', handleSample);
 btnClear?.addEventListener('click', handleClear);
 btnDownload?.addEventListener('click', handleDownload);
 
 optDeduplicate?.addEventListener('change', () => {
-  if (inputText && inputText.value.trim().length > 0 && outputText && outputText.value) {
+  if (inputText && inputText.value.trim().length > 0) {
     handleExtract(false);
   }
 });
 
-// Keyboard Shortcuts: Ctrl/Cmd + Enter to extract
+// Keyboard Shortcut: Ctrl/Cmd + Shift + C to copy all
 window.addEventListener('keydown', (e: KeyboardEvent) => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'c' || e.key === 'C')) {
     e.preventDefault();
-    handleExtract(true);
+    handleCopyAll();
   }
 });
 

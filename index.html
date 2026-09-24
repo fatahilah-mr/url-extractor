@@ -26,12 +26,12 @@
         <div class="header-meta">
           <span class="status-pill">
             <span class="status-dot"></span>
-            100% Client-Side Engine
+            Otomatis &bull; 100% Client-Side
           </span>
         </div>
       </div>
       <p class="app-description">
-        Ekstrak tautan dari teks panjang yang bercampur deskripsi secara instan, aman, dan 100% lokal di browser Anda.
+        Ekstrak tautan dari teks panjang secara otomatis, instan, dan 100% lokal di browser Anda tanpa membebani server.
       </p>
     </header>
 
@@ -51,6 +51,13 @@
             Teks Sumber
           </h2>
           <div class="card-tools">
+            <button id="btn-paste-quick" type="button" class="btn btn-secondary btn-sm" title="Tempel langsung dari Clipboard">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+              </svg>
+              <span>Tempel</span>
+            </button>
             <button id="btn-sample" type="button" class="btn btn-ghost" title="Muat contoh teks">
               Contoh
             </button>
@@ -64,7 +71,7 @@
           <textarea
             id="input-text"
             class="editor-textarea"
-            placeholder="Tempelkan atau ketik teks panjang yang berisi campuran deskripsi dan tautan di sini..."
+            placeholder="Ketik atau tempelkan teks panjang yang bercampur URL di sini, sistem akan langsung mengekstraknya secara otomatis..."
             aria-label="Teks sumber yang akan diekstrak"
             spellcheck="false"
           ></textarea>
@@ -72,10 +79,10 @@
 
         <div class="card-footer">
           <span id="char-counter" class="counter-text">0 karakter</span>
-          <button id="btn-extract-desktop" type="button" class="btn btn-primary" title="Ekstrak URL (Ctrl+Enter)">
-            <span>Ekstrak URL</span>
-            <kbd class="kbd">↵</kbd>
-          </button>
+          <span class="live-indicator">
+            <span class="status-dot"></span>
+            Real-time live parser
+          </span>
         </div>
       </section>
 
@@ -107,7 +114,7 @@
               <line x1="12" y1="8" x2="12" y2="12"></line>
               <line x1="12" y1="16" x2="12.01" y2="16"></line>
             </svg>
-            <p>Masukkan teks pada area di sebelah kiri, lalu tekan <strong>Ekstrak URL</strong>.</p>
+            <p>Tempelkan teks di sebelah kiri, seluruh URL akan <strong>otomatis diekstrak</strong> secara instan di sini.</p>
           </div>
 
           <textarea
@@ -123,7 +130,7 @@
 
         <div class="card-footer">
           <span id="url-counter" class="counter-text">0 URL ditemukan</span>
-          <button id="btn-download" type="button" class="btn btn-secondary" style="display: none;" title="Unduh sebagai file .txt">
+          <button id="btn-download" type="button" class="btn btn-secondary btn-sm" style="display: none;" title="Unduh sebagai file .txt">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
               <polyline points="7 10 12 15 17 10"></polyline>
@@ -143,17 +150,21 @@
       </label>
     </div>
 
-    <!-- Mobile Sticky Action Strip -->
+    <!-- Mobile Action Strip (Sticky Copy for Phone Screens) -->
     <div class="mobile-action-strip">
-      <button id="btn-extract-mobile" type="button" class="btn btn-primary btn-large-mobile">
-        <span>Ekstrak URL</span>
+      <button id="btn-copy-mobile" type="button" class="btn btn-primary btn-large-mobile" disabled>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+        <span>Salin Semua URL</span>
       </button>
     </div>
 
     <!-- Footer -->
     <footer class="app-footer">
       <div>
-        <span>URL Extractor</span> &bull; <span>100% Client-Side</span> &bull; <span>Tanpa beban server</span>
+        <span>URL Extractor</span> &bull; <span>Ekstraksi Otomatis Real-Time</span> &bull; <span>100% Client-Side</span>
       </div>
       <div>
         <a href="https://github.com/fatahilah-mr/url-extractor" target="_blank" rel="noopener noreferrer" class="footer-link">
