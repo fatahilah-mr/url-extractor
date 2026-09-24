@@ -164,10 +164,11 @@
 
     <!-- Options Bar -->
     <div class="options-bar">
-      <label class="checkbox-label">
-        <input type="checkbox" id="opt-deduplicate" />
-        <span>Hapus URL duplikat (hanya simpan URL unik)</span>
+      <label class="checkbox-label" for="opt-deduplicate">
+        <input type="checkbox" id="opt-deduplicate" checked />
+        <span>Hapus URL duplikat secara otomatis (hanya simpan URL unik)</span>
       </label>
+      <span id="dedupe-badge" class="dedupe-status-badge" style="display: none;"></span>
     </div>
 
     <!-- Mobile Action Strip (Sticky Copy for Phone Screens) -->

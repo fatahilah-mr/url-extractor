@@ -5,6 +5,7 @@ export interface ExtractOptions {
 export interface ExtractResult {
   urls: string[];
   totalExtracted: number;
+  duplicatesRemoved: number;
 }
 
 /**
@@ -21,7 +22,6 @@ function cleanUrlBoundaries(rawUrl: string): string {
   url = url.replace(/^['"‘“<(\[{]+/, '');
 
   // Strip trailing punctuation, brackets, or quotes
-  // We keep trimming until no trailing invalid boundary characters remain
   while (/[.,;:!?)]+$|['"’”>)\]}]+$/.test(url)) {
     // If the trailing character is a parenthesis ')', check if the URL has an unmatched '('
     if (url.endsWith(')')) {
@@ -39,11 +39,26 @@ function cleanUrlBoundaries(rawUrl: string): string {
 }
 
 /**
+ * Computes an RFC 3986 compliant comparison key for deduplication.
+ * - Protocol and Host are normalized to lowercase (case-insensitive per RFC 3986 §3.1 & §3.2.2).
+ * - Path, Query, and Fragment remain strictly case-sensitive and intact.
+ * This guarantees that distinct parameters, endpoints, or fragments are NEVER mistakenly discarded.
+ */
+function getCanonicalDedupeKey(rawUrl: string): string {
+  try {
+    const u = new URL(rawUrl);
+    return `${u.protocol.toLowerCase()}//${u.host.toLowerCase()}${u.pathname}${u.search}${u.hash}`;
+  } catch {
+    return rawUrl;
+  }
+}
+
+/**
  * Extracts all URLs from raw input text 100% client-side.
  */
 export function extractUrls(text: string, options: ExtractOptions = {}): ExtractResult {
   if (!text || typeof text !== 'string') {
-    return { urls: [], totalExtracted: 0 };
+    return { urls: [], totalExtracted: 0, duplicatesRemoved: 0 };
   }
 
   // Matches http://, https://, and www. prefixes with non-whitespace characters
@@ -60,10 +75,9 @@ export function extractUrls(text: string, options: ExtractOptions = {}): Extract
       cleaned = `https://${cleaned}`;
     }
 
-    // Verify valid URL via browser URL constructor
+    // Verify valid URL via browser URL constructor & enforce strict protocol whitelisting
     try {
       const parsed = new URL(cleaned);
-      // Ensure it has a valid protocol and hostname with at least one dot or localhost
       if ((parsed.protocol === 'http:' || parsed.protocol === 'https:') && parsed.hostname.length > 0) {
         processedUrls.push(cleaned);
       }
@@ -72,10 +86,29 @@ export function extractUrls(text: string, options: ExtractOptions = {}): Extract
     }
   }
 
-  const finalUrls = options.deduplicate ? Array.from(new Set(processedUrls)) : processedUrls;
+  let finalUrls = processedUrls;
+  let duplicatesRemoved = 0;
+
+  if (options.deduplicate) {
+    const seenKeys = new Set<string>();
+    const uniqueList: string[] = [];
+
+    for (const url of processedUrls) {
+      const key = getCanonicalDedupeKey(url);
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        uniqueList.push(url);
+      } else {
+        duplicatesRemoved++;
+      }
+    }
+
+    finalUrls = uniqueList;
+  }
 
   return {
     urls: finalUrls,
     totalExtracted: finalUrls.length,
+    duplicatesRemoved,
   };
 }

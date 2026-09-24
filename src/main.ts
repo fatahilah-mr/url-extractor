@@ -13,6 +13,8 @@ const tabRaw = document.getElementById('tab-raw') as HTMLButtonElement | null;
 
 const charCounter = document.getElementById('char-counter') as HTMLElement | null;
 const urlCounter = document.getElementById('url-counter') as HTMLElement | null;
+const dedupeBadge = document.getElementById('dedupe-badge') as HTMLElement | null;
+
 const btnPasteQuick = document.getElementById('btn-paste-quick') as HTMLButtonElement | null;
 const btnCopyAll = document.getElementById('btn-copy-all') as HTMLButtonElement | null;
 const btnCopyMobile = document.getElementById('btn-copy-mobile') as HTMLButtonElement | null;
@@ -223,6 +225,7 @@ function handleExtract(notifyIfEmpty = false): void {
     if (outputEmpty) outputEmpty.style.display = 'flex';
     if (outputLinksContainer) outputLinksContainer.style.display = 'none';
     if (outputRawContainer) outputRawContainer.style.display = 'none';
+    if (dedupeBadge) dedupeBadge.style.display = 'none';
     setCopyButtonsState(false);
     urlCounter.textContent = '0 URL ditemukan';
     if (notifyIfEmpty) {
@@ -231,7 +234,8 @@ function handleExtract(notifyIfEmpty = false): void {
     return;
   }
 
-  const isDeduplicate = optDeduplicate ? optDeduplicate.checked : false;
+  // Deduplication is active by default (optDeduplicate.checked === true)
+  const isDeduplicate = optDeduplicate ? optDeduplicate.checked : true;
   const result = extractUrls(rawText, { deduplicate: isDeduplicate });
   currentUrls = result.urls;
 
@@ -247,7 +251,20 @@ function handleExtract(notifyIfEmpty = false): void {
     setViewMode(currentViewMode);
 
     setCopyButtonsState(true);
-    urlCounter.textContent = `${result.totalExtracted.toLocaleString('id-ID')} URL ditemukan`;
+
+    if (result.duplicatesRemoved > 0) {
+      urlCounter.textContent = `${result.totalExtracted.toLocaleString('id-ID')} URL unik ditemukan (${result.duplicatesRemoved.toLocaleString('id-ID')} duplikat disaring)`;
+      if (dedupeBadge) {
+        dedupeBadge.textContent = `✓ ${result.duplicatesRemoved} duplikat disaring`;
+        dedupeBadge.style.display = 'inline-flex';
+      }
+    } else {
+      urlCounter.textContent = `${result.totalExtracted.toLocaleString('id-ID')} URL ditemukan`;
+      if (dedupeBadge) {
+        dedupeBadge.style.display = 'none';
+      }
+    }
+
     if (notifyIfEmpty) {
       showToast(`✓ Berhasil mengekstrak ${result.totalExtracted} URL`);
     }
@@ -258,6 +275,7 @@ function handleExtract(notifyIfEmpty = false): void {
     if (outputEmpty) outputEmpty.style.display = 'flex';
     if (outputLinksContainer) outputLinksContainer.style.display = 'none';
     if (outputRawContainer) outputRawContainer.style.display = 'none';
+    if (dedupeBadge) dedupeBadge.style.display = 'none';
     setCopyButtonsState(false);
     urlCounter.textContent = '0 URL ditemukan';
     if (notifyIfEmpty) {
@@ -371,7 +389,7 @@ function handleDownload(): void {
 }
 
 /**
- * Load realistic sample text
+ * Load realistic sample text (including deliberate duplicate for demonstration)
  */
 function handleSample(): void {
   if (!inputText) return;
@@ -379,7 +397,8 @@ function handleSample(): void {
 1. Dokumentasi Cloudflare Pages resmi: (https://developers.cloudflare.com/pages/), panduan lengkap CI/CD dan hosting statis.
 2. Repositori portofolio GitHub: https://github.com/fatahilah-mr/portfolio dan artikel teknis di https://blog.fatah.web.id/posts/modern-web.
 3. Contoh link pencarian: www.google.com/search?q=url+extractor&hl=id dan referensi RFC: (https://en.wikipedia.org/wiki/Uniform_Resource_Identifier).
-4. Layanan bantuan dan kontak resmi ada di 'https://fatah.web.id/kontak'!`;
+4. Layanan bantuan dan kontak resmi ada di 'https://fatah.web.id/kontak'!
+5. Repetisi tautan dokumentasi: https://developers.cloudflare.com/pages/ (contoh duplikat yang otomatis disaring).`;
 
   updateCharCounter();
   handleExtract(false);
@@ -397,6 +416,7 @@ function handleClear(): void {
   if (outputEmpty) outputEmpty.style.display = 'flex';
   if (outputLinksContainer) outputLinksContainer.style.display = 'none';
   if (outputRawContainer) outputRawContainer.style.display = 'none';
+  if (dedupeBadge) dedupeBadge.style.display = 'none';
   setCopyButtonsState(false);
   if (urlCounter) urlCounter.textContent = '0 URL ditemukan';
   updateCharCounter();

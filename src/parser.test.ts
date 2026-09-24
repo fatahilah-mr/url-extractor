@@ -3,8 +3,8 @@ import { extractUrls } from './parser';
 
 describe('extractUrls Engine', () => {
   it('returns empty result for empty or whitespace string', () => {
-    expect(extractUrls('')).toEqual({ urls: [], totalExtracted: 0 });
-    expect(extractUrls('   \n\t  ')).toEqual({ urls: [], totalExtracted: 0 });
+    expect(extractUrls('')).toEqual({ urls: [], totalExtracted: 0, duplicatesRemoved: 0 });
+    expect(extractUrls('   \n\t  ')).toEqual({ urls: [], totalExtracted: 0, duplicatesRemoved: 0 });
   });
 
   it('extracts standard http and https URLs', () => {
@@ -51,19 +51,6 @@ describe('extractUrls Engine', () => {
     ]);
   });
 
-  it('supports deduplication option when requested', () => {
-    const text = 'Link sama: https://example.com dan https://example.com dan https://other.org';
-    const resultAll = extractUrls(text);
-    expect(resultAll.urls.length).toBe(3);
-
-    const resultUnique = extractUrls(text, { deduplicate: true });
-    expect(resultUnique.urls).toEqual([
-      'https://example.com',
-      'https://other.org'
-    ]);
-    expect(resultUnique.totalExtracted).toBe(2);
-  });
-
   it('handles Wikipedia URLs with internal parentheses', () => {
     const text = 'Baca https://en.wikipedia.org/wiki/URL_(disambiguation) di Wikipedia.';
     const result = extractUrls(text);
@@ -72,7 +59,7 @@ describe('extractUrls Engine', () => {
     ]);
   });
 
-  /* Enterprise Security & Hardening Tests */
+  /* Enterprise Security Tests */
   it('strictly rejects dangerous non-http protocols (XSS prevention)', () => {
     const maliciousText = `
       Tautan terlarang: javascript:alert(1)
@@ -91,5 +78,69 @@ describe('extractUrls Engine', () => {
     expect(result.urls).toEqual([
       'http://192.168.1.1:8080/admin/v2?filter=%20special'
     ]);
+  });
+
+  /* Enterprise Deduplication Tests (Guaranteed Never to Drop Wrong URLs) */
+  describe('Deduplication Safety & RFC-3986 Compliance', () => {
+    it('correctly filters exact duplicates and preserves first appearance order', () => {
+      const text = `
+        1. https://first.com/page
+        2. https://second.com/page
+        3. https://first.com/page
+        4. https://third.com/page
+        5. https://second.com/page
+      `;
+      const result = extractUrls(text, { deduplicate: true });
+      expect(result.urls).toEqual([
+        'https://first.com/page',
+        'https://second.com/page',
+        'https://third.com/page'
+      ]);
+      expect(result.totalExtracted).toBe(3);
+      expect(result.duplicatesRemoved).toBe(2);
+    });
+
+    it('NEVER discards URLs with different query parameters', () => {
+      const text = `
+        https://api.example.com/v1/users?page=1
+        https://api.example.com/v1/users?page=2
+        https://api.example.com/v1/users?sort=asc
+      `;
+      const result = extractUrls(text, { deduplicate: true });
+      expect(result.urls).toHaveLength(3);
+      expect(result.duplicatesRemoved).toBe(0);
+    });
+
+    it('NEVER discards URLs with different hash fragments', () => {
+      const text = `
+        https://docs.example.com/guide#intro
+        https://docs.example.com/guide#installation
+        https://docs.example.com/guide#faq
+      `;
+      const result = extractUrls(text, { deduplicate: true });
+      expect(result.urls).toHaveLength(3);
+      expect(result.duplicatesRemoved).toBe(0);
+    });
+
+    it('NEVER discards URLs with different paths or ports', () => {
+      const text = `
+        https://example.com:3000/app
+        https://example.com:8080/app
+        https://example.com/other
+      `;
+      const result = extractUrls(text, { deduplicate: true });
+      expect(result.urls).toHaveLength(3);
+      expect(result.duplicatesRemoved).toBe(0);
+    });
+
+    it('accurately identifies duplicates even if host casing differs (RFC 3986 §3.2.2)', () => {
+      const text = `
+        https://GITHUB.COM/fatahilah-mr/url-extractor
+        https://github.com/fatahilah-mr/url-extractor
+      `;
+      const result = extractUrls(text, { deduplicate: true });
+      expect(result.urls).toHaveLength(1);
+      expect(result.duplicatesRemoved).toBe(1);
+    });
   });
 });
